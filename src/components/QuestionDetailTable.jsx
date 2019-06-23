@@ -1,42 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useReducer } from 'react';
 import PropTypes from 'prop-types';
 import { Button, Table, ProgressBar } from "react-bootstrap";
 
 import { BTN_SIZE, TABLE_SIZE } from '../common/constants';
-import { getQuestionDetail, voteQuestion } from "../util/api";
+import { voteQuestion } from "../util/api";
+import {
+    INIT_STATE,
+    VOTE,
+    questionDetailStateReducer,
+    initialState,
+    getInitialState } from '../reducer/questionDetailStateReducer';
 
 export const QuestionDetailTable = ({id}) => {
-    const [choices, setChoices] = useState([]);
-    const [questionTitle, setQuestionTitle] = useState('');
-    const [totalVotes, setTotalVotes] = useState(0);
+    const [state, dispatch] = useReducer(questionDetailStateReducer, initialState);
+    const { questionTitle, choices, totalVotes } = state;
 
     useEffect(() => {
-        getQuestionDetail(id)
-            .then(resp => {
-                setQuestionTitle(resp.data.question);
-                setChoices(resp.data.choices);
-                calTotalVotes(resp.data.choices);
-            })
-            .catch(err => console.log(err));
-    }, []);
-
-    const calTotalVotes = (choices) => {
-        let voteSum = 0;
-
-        choices.forEach((item) => {
-            voteSum += item.votes;
+        getInitialState(id).then(newState => {
+            dispatch({
+                type: INIT_STATE,
+                payload: newState
+            });
         });
-
-        setTotalVotes(voteSum);
-    };
+    }, [id]);
 
     const handleVote = (requestUrl, i) => {
         voteQuestion(requestUrl)
             .then(resp => {
                 const cloneChoices = { ...choices };
                 cloneChoices[i] = resp.data;
-                setChoices(Object.values(cloneChoices));
-                setTotalVotes(totalVotes + 1);
+
+                const payload = {
+                    choices: Object.values(cloneChoices),
+                    totalVotes: totalVotes + 1
+                };
+
+                dispatch({
+                    type: VOTE,
+                    payload: payload
+                });
+
             })
             .catch(err => console.log(err));
     };
